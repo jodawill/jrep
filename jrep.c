@@ -1,126 +1,246 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdbool.h>
-#include <strings.h>
 
-bool isend(char c) {
- bool ret = (c == '\0' || c == EOF);
- if (ret) printf("\n");
- return ret;
+#define MAX_EXPR   1024
+#define T_BEG_LINE    1
+#define T_CHAR        2
+#define T_EOL         3
+#define T_RANGE       4
+#define T_DOT         5
+
+int usage() {
+ printf("usage: jrep [pattern] [file]\n");
+ return 0;
 }
 
-bool isspecial(char c) {
- return (c == '^' || c == '$' || c == '.' || c == '*' || c == '\n');
+int parse(char *expr, char *line) {
+ bool matches = false;
+ int n = 0;
+ struct {
+  int type[MAX_EXPR];
+  int current;
+  int count;
+  char value[MAX_EXPR];
+  bool optional[MAX_EXPR];
+
+  struct {
+   int glb[MAX_EXPR];
+   int lub[MAX_EXPR];
+  } range;
+
+ } state;
+
+ state.current = 0;
+ state.count = 0;
+
+ /* Parse the regular expression to create a sequence of states */
+ for (int i = 0; expr[i] != '\0'; i++) {
+  state.optional[state.current] = false;
+  switch (expr[i]) {
+   case '^': {
+    if (i != 0) {
+     fprintf(stderr, "Error: Leading characters before ^\n");
+     return -1;
+    }
+    state.type[0] = T_BEG_LINE;
+    ++state.count;
+    ++state.current;
+    continue;
+   }
+
+   case '$': {
+    if (expr[i+1] != '\0') {
+     fprintf(stderr, "Error: Trailing characters after $\n");
+     return -1;
+    }
+    state.type[state.current] = T_EOL;
+    ++state.count;
+    ++state.current;
+    continue;
+   }
+
+   case '?': {
+    if (state.current == 0) {
+     fprintf(stderr, "Error: Missing state before ?\n");
+     return -1;
+    }
+    state.optional[state.current-1] = true;
+    continue;
+   }
+
+   case '[': {
+    state.type[state.current] = T_RANGE;
+
+    /* Obtain greatest lower bound of range */
+    ++i;
+    if (expr[i] == '\0' || expr[i] == ']') {
+     fprintf(stderr, "Error: Malformed range\n");
+     return -1;
+    }
+    state.range.glb[state.current] = expr[i];
+
+    /* Look for - separating range */
+    ++i;
+    if (expr[i] != '-') {
+     fprintf(stderr, "Error: Range missing separator\n");
+     return -1;
+    }
+
+    /* Obtain least upper bound of range */
+    if (expr[i] != '\0') ++i; else {
+     fprintf(stderr, "Error: Unterminated range\n");
+     return -1;
+    }
+    if (expr[i] == '\0' || expr[i] == ']') fprintf(stderr, "Error: Malformed range\n");
+    state.range.lub[state.current] = expr[i];
+
+    if (expr[++i] != ']') {
+     fprintf(stderr, "Error: Expected ], got '%c' (%d)\n", expr[i], (int)expr[i]);
+     return -1;
+    }
+
+    if (state.range.lub[state.current] < state.range.glb[state.current]) {
+     fprintf(stderr, "Error: Least upper bound of range is less than its greatest lower bound\n");
+     return -1;
+    }
+
+    ++state.current;
+    ++state.count;
+    continue;
+   }
+
+   case ']': {
+    fprintf(stderr, "Error: Missing opening [\n");
+    return -1;
+   }
+
+   case '.': {
+    state.type[state.current] = T_DOT;
+    ++state.current;
+    ++state.count;
+    continue;
+   }
+  }
+
+  state.type[state.current] = T_CHAR;
+  state.value[state.current] = expr[i];
+
+  ++state.count;
+  ++state.current;
+ }
+ state.current = 0;
+
+ do {
+  switch (state.type[state.current]) {
+   case T_BEG_LINE: {
+    if (n != 0) {
+     return false;
+    }
+    matches = true;
+    ++state.current;
+    continue;
+   }
+
+   case T_EOL: {
+    return ((line[n] == '\n' && matches) || state.current == 0);
+   }
+
+   case T_RANGE: {
+    if (line[n] >= state.range.glb[state.current] &&
+        line[n] <= state.range.lub[state.current]) {
+
+     ++n;
+     ++state.current;
+     matches = true;
+     continue;
+    }
+    if (state.optional[state.current]) {
+     ++state.current;
+     matches = true;
+    } else {
+     state.current = 0;
+     matches = false;
+     ++n;
+    }
+    continue;
+   }
+
+   case T_DOT: {
+    if (line[n] != '\n') {
+     matches = true;
+     ++state.current;
+     ++n;
+     continue;
+    }
+    if (state.optional[state.current]) {
+     matches = true;
+     --n;
+     continue;
+    }
+    matches = false;
+    ++n;
+    continue;
+   }
+
+   case T_CHAR: {
+    if (line[n] == state.value[state.current]) {
+     ++state.current;
+     ++n;
+     matches = true;
+     continue;
+    } 
+    if (state.optional[state.current]) {
+     matches = true;
+     ++state.current;
+     if (line[n+1] == '\n') ++n;
+     continue;
+    } else {
+     matches = false;
+     state.current = 0;
+     ++n;
+    }
+    continue;
+   }
+  }
+ } while (line[n] != '\0' && state.current < state.count);
+
+ return matches && (state.current == state.count);
 }
 
 int main(int argc, char *argv[]) {
- if (argc < 2) {
-  printf("jrep requires a regular expression\n");
-  return 1;
+ FILE *fp;
+
+ if (argc < 2) return usage();
+
+ if (argc > 2) {
+  fp = fopen(argv[2], "r");
+  if (fp == NULL) {
+   fprintf(stderr, "Error opening file: %s\n", argv[2]);
+   return 1;
+  }
+ } else fp = stdin;
+
+ size_t def_bytes = 1024;
+ char *line = (char *)malloc(def_bytes);
+ int bytes_read = getline(&line, &def_bytes, fp);
+ int lc = 0;
+ bool matches = false;
+
+ while (bytes_read > 0) {
+  ++lc;
+  int result = parse(argv[1], line);
+  if (result == true) {
+   matches = true;
+   printf("%4d: %s", lc, line);
+  } else if (result < 0) {
+   return 2;
+  }
+  bytes_read = getline(&line, &def_bytes, fp);
  }
 
- /* Initialize variables */
- char *regex = argv[1];
- char c, seekfor, lastchar;
- int i = 0;
- bool matched = false;
- bool findnext = true;
- bool matchstarted = false;
- seekfor = regex[0];
- lastchar = '\n';
+ free(line);
 
- /* Loop through every character in input to match it against regex */
- for (c = getchar(); c != EOF && c != '\0'; c = getchar()) {
-  /* Quit if end of regex is found */
-  if (isend(seekfor)) return 0;
-
-  /* We have not found a match yet. We'll set this to true if this iteration
-     of the loop finds something. */
-  matched = false;
-
-  if (c == '\n' && seekfor == '.') {
-   if (regex[i+1] == '*') {
-    if (isend(regex[i+2])) return 0;
-    else {
-     i += 2;
-     seekfor = regex[i];
-    }
-   } else {
-    printf("Pattern not matched\n");
-    return 1;
-   }
-  }
-
-  if (!matched && seekfor == '^') {
-   if (lastchar == '\n') {
-    matchstarted = true;
-    printf("^");
-
-    /* Don't mark as matched because ^ matches the last character, not
-       the current. Instead, check to see if the expression has ended.
-       If not, move onto the expressions matching the current character. */
-    if (isend(findnext)) return 0;
-    seekfor = regex[++i];
-    if (isend(seekfor)) return 0;
-   }
-  }
-
-  if (!matched && seekfor == '$') {
-   if ((matchstarted && c == '\n') || (c == '\n' && lastchar == '\n')) {
-    printf("$");
-    seekfor = regex[++i];
-    if (isend('\0')) return 0;
-   } else {
-    printf("\n$ not matched\n");
-    i = 0;
-    seekfor = regex[i];
-    matchstarted = false;
-    matched = false;
-    ungetc(c, stdin);
-    continue;
-   }
-  }
-
-  if (!matched && !isspecial(seekfor)) {
-   if (c == seekfor) {
-    printf("%c", c);
-    seekfor = regex[++i];
-    if (isend(seekfor)) return 0;
-    matched = true;
-   } else if (matchstarted) {
-    printf(" # aborting partial match\n");
-    i = 0;
-    seekfor = regex[i];
-    matched = false;
-    matchstarted = false;
-    ungetc(c, stdin);
-    continue;
-   }
-  }
-
-  if (!matched && seekfor == '.') {
-   matched = true;
-   if (regex[i+1] == '*' && regex[i+2] == c) {
-    printf("%c", c);
-    i += 3;
-    seekfor = regex[i];
-   } else {
-    printf("%c", c);
-    if (regex[i+1] != '*') seekfor = regex[++i];
-   }
-  }
-
-  if (!matched) {
-   if (matchstarted) {
-    if (regex[i+1] == '*') {
-     i += 2;
-     seekfor = regex[i];
-     if (isend(seekfor)) return 0;
-    } return 1;
-   }
-  } else {
-   matchstarted = true;
-  }
-  lastchar = c;
- }
- return 0;
+ if (matches) return 0;
+ else return 1;
 }
