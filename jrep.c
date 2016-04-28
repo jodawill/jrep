@@ -120,6 +120,18 @@ int parse(char *expr, struct s_state *state) {
     ++state->count;
     continue;
    }
+
+   case '\\': {
+    if (expr[++i] == '\0') {
+     fprintf(stderr, "Error: Trailing \\\n");
+     return -1;
+    }
+    state->type[state->current] = T_CHAR;
+    state->value[state->current] = expr[i];
+    ++state->count;
+    ++state->current;
+    continue;
+   }
   }
 
   state->type[state->current] = T_CHAR;
