@@ -1,2 +1,2 @@
 # jrep
-Joshua-grep
+`jrep` is Just a Regular Expresion Parser.
