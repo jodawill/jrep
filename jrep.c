@@ -9,11 +9,10 @@
 #define MAX_EXPR   1024
 
 /* Define all of the possible states */
-#define T_BEG_LINE    1
-#define T_CHAR        2
-#define T_EOL         3
-#define T_RANGE       4
-#define T_DOT         5
+#define T_CHAR        1
+#define T_EOL         2
+#define T_RANGE       3
+#define T_DOT         4
 
 /* An s_state struct stores a graph of states */
 struct s_state {
@@ -21,6 +20,7 @@ struct s_state {
  int current;
  int count;
  char value[MAX_EXPR];
+ bool beg;
  bool optional[MAX_EXPR];
 
  struct {
@@ -51,9 +51,7 @@ int parse(char *expr, struct s_state *state) {
      fprintf(stderr, "Error: Leading characters before ^\n");
      return -1;
     }
-    state->type[0] = T_BEG_LINE;
-    ++state->count;
-    ++state->current;
+    state->beg = true;
     continue;
    }
 
@@ -162,104 +160,65 @@ int parse(char *expr, struct s_state *state) {
  return 0;
 }
 
+/* Returns whether a character c matches a particular state i */
+int does_char_match(char c, struct s_state *state, int i) {
+ switch (state->type[i]) {
+  case T_CHAR: {
+   return (state->value[i] == c || state->optional[i]);
+  }
+
+  case T_EOL: {
+   return (c == '\n');
+  }
+
+  case T_RANGE: {
+   return ((c >= state->range.glb[i] && c <= state->range.lub[i]) ||
+            state->optional[i]);
+  }
+
+  case T_DOT: {
+   return (c != '\n' || state->optional[i]);
+  }
+ }
+ return -1;
+}
+
+/* Return 0 if an entire match is found from line[0]. Otherwise, return the
+   number of characters to jump forward. If no match is found, we jump
+   forward by one character. If a partial match is found, we return the
+   position of the first character matching state 0 *after* line[0]. */
+int match_start(char *line, struct s_state *state) {
+ int i = 0;
+ int n = 0;
+ int jump = 1;
+ int b = false;
+ do {
+  if (jump == 1 && i > 0 && !b && does_char_match(line[n], state, 0)) {
+   b = true;
+   jump = n;
+  }
+  if (!does_char_match(line[n++], state, i++)) return jump;
+ } while (line[n] != '\0' && i < state->count);
+ if (i == state->count) {
+  return 0;
+ } else return jump;
+}
+
 /* Returns whether the line matches the pattern by traversing the graph
    stored in the state struct */
 bool does_match(char *line, struct s_state *state) {
- state->current = 0;
- bool matches = false;
  int n = 0;
-
- /* We use a do-while so we can catch blank lines. Otherwise, the loop
-    would break before we're able to parse the blank line. */
+ int jump;
  do {
-  switch (state->type[state->current]) {
-   /* ^ -- Matches begining of line */
-   case T_BEG_LINE: {
-    if (n != 0) {
-     return false;
-    }
-    matches = true;
-    ++state->current;
-    continue;
-   }
-
-   /* $ -- Matches the end of line */
-   case T_EOL: {
-    return ((line[n] == '\n' && matches) || state->current == 0);
-   }
-
-   /* [a-z] -- Matches any range of characters */
-   case T_RANGE: {
-    /* Check whether current character is inside the range */
-    if (line[n] >= state->range.glb[state->current] &&
-        line[n] <= state->range.lub[state->current]) {
-
-     ++n;
-     ++state->current;
-     matches = true;
-     continue;
-    }
-    /* Character was not inside the range. Was the state optional? */
-    if (state->optional[state->current]) {
-     ++state->current;
-     matches = true;
-    } else {
-     state->current = 0;
-     matches = false;
-     ++n;
-    }
-    continue;
-   }
-
-   /* . -- Matches any character */
-   case T_DOT: {
-    /* If we're at the end of the line, don't match; \n doesn't count as a
-       character in the line. */
-    if (line[n] != '\n') {
-     matches = true;
-     ++state->current;
-     ++n;
-     continue;
-    }
-    /* End of line reached. If the state was optional, that's ok! */
-    if (state->optional[state->current]) {
-     matches = true;
-     --n;
-     continue;
-    }
-    matches = false;
-    ++n;
-    continue;
-   }
-
-   /* Match the character specified by state->value[]. This could be any
-      character because the escapes have already been parsed. */
-   case T_CHAR: {
-    if (line[n] == state->value[state->current]) {
-     ++state->current;
-     ++n;
-     matches = true;
-     continue;
-    } 
-    /* Character didn't match, but that's ok if it was optional. */
-    if (state->optional[state->current]) {
-     matches = true;
-     ++state->current;
-     if (line[n+1] == '\n') ++n;
-     continue;
-    } else {
-     matches = false;
-     state->current = 0;
-     ++n;
-    }
-    continue;
-   }
+  jump = match_start(&line[n], state);
+  if (jump == 0) {
+   return true;
+  } else {
+   if (state->beg) return false;
+   n += jump;
   }
- } while (line[n] != '\0' && state->current < state->count);
-
- /* It's not enough for the current state to be matched; we had to have
-    also reached the end of the graph. */
- return matches && (state->current == state->count);
+ } while (line[n] != '\0');
+ return false;
 }
 
 int main(int argc, char *argv[]) {
