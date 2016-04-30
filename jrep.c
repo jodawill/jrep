@@ -198,7 +198,6 @@ int match_start(char *line, struct s_state *state) {
   }
   if (!does_char_match(line[n++], state, i++)) {
    if (state->optional[i-1]) {
-    printf("test\n");
     --n;
    } else return jump;
   }
