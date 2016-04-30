@@ -275,7 +275,7 @@ int main(int argc, char *argv[]) {
  FILE *fp;
 
  if (argc > pattern + 1) {
-  fp = fopen(argv[2], "r");
+  fp = fopen(argv[pattern + 1], "r");
   if (fp == NULL) {
    fprintf(stderr, "Error opening file: %s\n", argv[2]);
    return 1;
