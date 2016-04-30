@@ -303,10 +303,6 @@ int main(int argc, char *argv[]) {
 
  /* Stores temporary output */
  char *buffer = (char *)malloc(def_bytes);
- buffer[0] = 'a';
- buffer[1] = 'b';
- buffer[2] = 'c';
- buffer[3] = '\0';
 
  /* Number of bytes read by getline() */
  int bytes_read = getline(&line, &def_bytes, fp);
