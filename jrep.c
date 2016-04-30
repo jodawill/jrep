@@ -328,8 +328,8 @@ int main(int argc, char *argv[]) {
   if (inverse ^ does_match(line, &state, only, &buffer)) {
    matches = true;
    if (linecount) printf("%d:", lc);
-   if (!only) printf("%s", line);
-   else printf("%s", buffer);
+   if (only && !inverse) printf("%s", buffer);
+   else printf("%s", line);
   }
   bytes_read = getline(&line, &def_bytes, fp);
  }
