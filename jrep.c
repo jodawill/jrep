@@ -22,6 +22,7 @@ struct s_state {
  char value[MAX_EXPR];
  bool beg;
  bool optional[MAX_EXPR];
+ bool kleene[MAX_EXPR];
 
  struct {
   int glb[MAX_EXPR];
@@ -43,6 +44,7 @@ int parse(char *expr, struct s_state *state) {
  /* Parse the regular expression to create a sequence of states */
  for (int i = 0; expr[i] != '\0'; i++) {
   state->optional[state->current] = false;
+  state->kleene[state->current] = false;
   switch (expr[i]) {
    /* Match the beginning of a line or complain if the pattern wants the
       beginning of the line to come after another character */
@@ -135,6 +137,16 @@ int parse(char *expr, struct s_state *state) {
     continue;
    }
 
+   case '*': {
+    if (state->current == 0) {
+     fprintf(stderr, "Error: Missing state before *\n");
+     return -1;
+    }
+    state->optional[state->current-1] = true;
+    state->kleene[state->current-1] = true;
+    continue;
+   }
+
    /* If we find a \, the next character is stored as a T_CHAR state. In
       other words, the following character is escaped. */
    case '\\': {
@@ -196,10 +208,15 @@ int match_start(char *line, struct s_state *state) {
    b = true;
    jump = n;
   }
-  if (!does_char_match(line[n++], state, i++)) {
-   if (state->optional[i-1]) {
-    --n;
-   } else return jump;
+  bool match = does_char_match(line[n], state, i);
+
+  if (match) {
+   if (!state->kleene[i]) ++i;
+   ++n;
+  } else if (state->optional[i]) {
+   ++i;
+  } else {
+   return jump;
   }
  } while (line[n] != '\0' && i < state->count);
  if (i == state->count) {
