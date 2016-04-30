@@ -246,9 +246,30 @@ int main(int argc, char *argv[]) {
     usage screen. */
  if (argc < 2) return usage();
 
+ /* Which argv the pattern is stored in */
+ int pattern = 1;
+
+ bool inverse = false;
+
+ if (argv[1][0] == '-') {
+  ++pattern;
+  for (int i = 1; argv[1][i] != '\0'; ++i) {
+   switch (argv[1][i]) {
+    case 'v': {
+     inverse = true;
+     break;
+    }
+    default: {
+     fprintf(stderr, "Error: Unknown option: %c\n", argv[1][i]);
+     return 1;
+    }
+   }
+  }
+ }
+
  FILE *fp;
 
- if (argc > 2) {
+ if (argc > pattern + 1) {
   fp = fopen(argv[2], "r");
   if (fp == NULL) {
    fprintf(stderr, "Error opening file: %s\n", argv[2]);
@@ -275,14 +296,14 @@ int main(int argc, char *argv[]) {
  struct s_state state;
 
  /* Parse the expression or throw an error */
- if (parse(argv[1], &state) < 0) {
+ if (parse(argv[pattern], &state) < 0) {
   return 2;
  }
 
  /* Check for matches in each line of the file */
  while (bytes_read > 0) {
   ++lc;
-  if (does_match(line, &state)) {
+  if (inverse ^ does_match(line, &state)) {
    matches = true;
    printf("%4d: %s", lc, line);
   }
