@@ -221,6 +221,7 @@ int match_start(char *line, struct s_state *state, bool print, char **buffer) {
  } while (line[n] != '\0' && i < state->count);
  if (i == state->count) {
   if (print) {
+   free(*buffer);
    *buffer = (char *)malloc(n+1);
    for (int j = 0; j < n; ++j) {
     (*buffer)[j] = line[j];
