@@ -164,7 +164,7 @@ int parse(char *expr, struct s_state *state) {
 int does_char_match(char c, struct s_state *state, int i) {
  switch (state->type[i]) {
   case T_CHAR: {
-   return (state->value[i] == c || state->optional[i]);
+   return (state->value[i] == c);
   }
 
   case T_EOL: {
@@ -172,12 +172,11 @@ int does_char_match(char c, struct s_state *state, int i) {
   }
 
   case T_RANGE: {
-   return ((c >= state->range.glb[i] && c <= state->range.lub[i]) ||
-            state->optional[i]);
+   return ((c >= state->range.glb[i] && c <= state->range.lub[i]));
   }
 
   case T_DOT: {
-   return (c != '\n' || state->optional[i]);
+   return (c != '\n');
   }
  }
  return -1;
@@ -197,7 +196,12 @@ int match_start(char *line, struct s_state *state) {
    b = true;
    jump = n;
   }
-  if (!does_char_match(line[n++], state, i++)) return jump;
+  if (!does_char_match(line[n++], state, i++)) {
+   if (state->optional[i-1]) {
+    printf("test\n");
+    --n;
+   } else return jump;
+  }
  } while (line[n] != '\0' && i < state->count);
  if (i == state->count) {
   return 0;
