@@ -32,7 +32,7 @@ struct s_state {
 };
 
 int usage() {
- printf("usage: [-vn] jrep [pattern] [file]\n");
+ printf("usage: [-nov] jrep [pattern] [file]\n");
  return 0;
 }
 
@@ -198,7 +198,7 @@ int does_char_match(char c, struct s_state *state, int i) {
    number of characters to jump forward. If no match is found, we jump
    forward by one character. If a partial match is found, we return the
    position of the first character matching state 0 *after* line[0]. */
-int match_start(char *line, struct s_state *state) {
+int match_start(char *line, struct s_state *state, bool print, char **buffer) {
  int i = 0;
  int n = 0;
  int jump = 1;
@@ -220,17 +220,25 @@ int match_start(char *line, struct s_state *state) {
   }
  } while (line[n] != '\0' && i < state->count);
  if (i == state->count) {
+  if (print) {
+   *buffer = (char *)malloc(n+1);
+   for (int j = 0; j < n; ++j) {
+    (*buffer)[j] = line[j];
+   }
+   (*buffer)[n] = '\n';
+   (*buffer)[n+1] = '\0';
+  }
   return 0;
  } else return jump;
 }
 
 /* Returns whether the line matches the pattern by traversing the graph
    stored in the state struct */
-bool does_match(char *line, struct s_state *state) {
+bool does_match(char *line, struct s_state *state, bool print, char **buffer) {
  int n = 0;
  int jump;
  do {
-  jump = match_start(&line[n], state);
+  jump = match_start(&line[n], state, print, buffer);
   if (jump == 0) {
    return true;
   } else {
@@ -251,6 +259,7 @@ int main(int argc, char *argv[]) {
 
  bool inverse = false;
  bool linecount = false;
+ bool only = false;
 
  if (argv[1][0] == '-') {
   ++pattern;
@@ -262,6 +271,10 @@ int main(int argc, char *argv[]) {
     }
     case 'n': {
      linecount = true;
+     break;
+    }
+    case 'o': {
+     only = true;
      break;
     }
     default: {
@@ -288,6 +301,13 @@ int main(int argc, char *argv[]) {
  /* String storing the current line of the file */
  char *line = (char *)malloc(def_bytes);
 
+ /* Stores temporary output */
+ char *buffer = (char *)malloc(def_bytes);
+ buffer[0] = 'a';
+ buffer[1] = 'b';
+ buffer[2] = 'c';
+ buffer[3] = '\0';
+
  /* Number of bytes read by getline() */
  int bytes_read = getline(&line, &def_bytes, fp);
 
@@ -308,10 +328,11 @@ int main(int argc, char *argv[]) {
  /* Check for matches in each line of the file */
  while (bytes_read > 0) {
   ++lc;
-  if (inverse ^ does_match(line, &state)) {
+  if (inverse ^ does_match(line, &state, only, &buffer)) {
    matches = true;
-   if (linecount) printf("%4d: %s", lc, line);
-   else printf("%s", line);
+   if (linecount) printf("%d:", lc);
+   if (!only) printf("%s", line);
+   else printf("%s", buffer);
   }
   bytes_read = getline(&line, &def_bytes, fp);
  }
@@ -319,6 +340,7 @@ int main(int argc, char *argv[]) {
  /* The OS should be doing the cleanup for us, but we'll go ahead and close
     the file and free the string's memory anyway. */
  free(line);
+ free(buffer);
  fclose(fp);
 
  /* Return 1 if no match was found so we can use this as a test in bash
