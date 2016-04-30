@@ -250,6 +250,7 @@ int main(int argc, char *argv[]) {
  int pattern = 1;
 
  bool inverse = false;
+ bool linecount = false;
 
  if (argv[1][0] == '-') {
   ++pattern;
@@ -257,6 +258,10 @@ int main(int argc, char *argv[]) {
    switch (argv[1][i]) {
     case 'v': {
      inverse = true;
+     break;
+    }
+    case 'n': {
+     linecount = true;
      break;
     }
     default: {
@@ -305,7 +310,8 @@ int main(int argc, char *argv[]) {
   ++lc;
   if (inverse ^ does_match(line, &state)) {
    matches = true;
-   printf("%4d: %s", lc, line);
+   if (linecount) printf("%4d: %s", lc, line);
+   else printf("%s", line);
   }
   bytes_read = getline(&line, &def_bytes, fp);
  }
