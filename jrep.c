@@ -32,7 +32,7 @@ struct s_state {
 };
 
 int usage() {
- printf("usage: jrep [pattern] [file]\n");
+ printf("usage: [-vn] jrep [pattern] [file]\n");
  return 0;
 }
 
