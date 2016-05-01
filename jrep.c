@@ -226,7 +226,7 @@ int match_start(char *line, struct s_state *state, bool print, char **buffer) {
    for (int j = 0; j < n; ++j) {
     (*buffer)[j] = line[j];
    }
-   (*buffer)[n] = '\n';
+   if ((*buffer)[n-1] != '\n') (*buffer)[n] = '\n';
    (*buffer)[n+1] = '\0';
   }
   return 0;
