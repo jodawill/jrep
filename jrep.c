@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <strings.h>
 
 /* Specify GNU source for readline() function */
 #define _GNU_SOURCE
@@ -32,7 +33,7 @@ struct s_state {
 };
 
 int usage() {
- printf("usage: jrep [-cnov] [pattern] [file]\n");
+ printf("usage: jrep [-cHnov] [pattern] [file]\n");
  return 0;
 }
 
@@ -265,6 +266,7 @@ int main(int argc, char *argv[]) {
  bool linecount = false;
  bool only = false;
  bool count = false;
+ bool print_names = false;
  int c = 0;
 
  if (argv[1][0] == '-') {
@@ -273,6 +275,10 @@ int main(int argc, char *argv[]) {
    switch (argv[1][i]) {
     case 'c': {
      count = true;
+     break;
+    }
+    case 'H': {
+     print_names = true;
      break;
     }
     case 'v': {
@@ -296,14 +302,19 @@ int main(int argc, char *argv[]) {
  }
 
  FILE *fp;
+ char *fn;
 
  if (argc > pattern + 1) {
+  fn = argv[pattern + 1];
   fp = fopen(argv[pattern + 1], "r");
   if (fp == NULL) {
    fprintf(stderr, "Error opening file: %s\n", argv[2]);
    return 1;
   }
- } else fp = stdin;
+ } else {
+  fp = stdin;
+  strcpy(fn, "(standard input)");
+ }
 
  /* Default string size; this number doesn't really matter */
  size_t def_bytes = 1024;
@@ -338,6 +349,7 @@ int main(int argc, char *argv[]) {
    matches = true;
    ++c;
    if (!count) {
+    if (print_names) printf("%s:", fn);
     if (linecount) printf("%d:", lc);
     if (only && !inverse) printf("%s", buffer);
     else printf("%s", line);
