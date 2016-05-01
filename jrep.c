@@ -8,10 +8,6 @@
 /* Maximum number of states in a graph */
 #define MAX_EXPR   1024
 
-/* Define color */
-#define C_RED  "\x1B[31m"
-#define C_NRM  "\x1B[0m"
-
 /* Define all of the possible states */
 #define T_CHAR        1
 #define T_EOL         2
