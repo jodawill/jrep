@@ -37,6 +37,11 @@ int usage() {
  return 0;
 }
 
+int version() {
+ printf("jrep (Just a Regular Expression Parser 1.0.0\n");
+ return 0;
+}
+
 /* Parses the regular expression and creates a graph of states in struct */
 int parse(char *expr, struct s_state *state) {
  state->current = 0;
@@ -284,6 +289,9 @@ int main(int argc, char *argv[]) {
     case 'v': {
      inverse = true;
      break;
+    }
+    case 'V': {
+     return version();
     }
     case 'n': {
      linecount = true;
