@@ -184,7 +184,7 @@ int does_char_match(char c, struct s_state *state, int i) {
   }
 
   case T_RANGE: {
-   return ((c >= state->range.glb[i] && c <= state->range.lub[i]));
+   return (c >= state->range.glb[i] && c <= state->range.lub[i]);
   }
 
   case T_DOT: {
