@@ -211,7 +211,10 @@ int match_start(char *line, struct s_state *state, bool print, char **buffer) {
   bool match = does_char_match(line[n], state, i);
 
   if (match) {
-   if (!state->kleene[i]) ++i;
+   if (!state->kleene[i] ||
+     (state->kleene[i] && state->count > i+1 && does_char_match(line[n+1], state, i+1))) {
+    ++i;
+   }
    ++n;
   } else if (state->optional[i]) {
    ++i;
