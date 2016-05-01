@@ -8,6 +8,10 @@
 /* Maximum number of states in a graph */
 #define MAX_EXPR   1024
 
+/* Define color */
+#define C_RED  "\x1B[31m"
+#define C_NRM  "\x1B[0m"
+
 /* Define all of the possible states */
 #define T_CHAR        1
 #define T_EOL         2
@@ -32,7 +36,7 @@ struct s_state {
 };
 
 int usage() {
- printf("usage: jrep [-nov] [pattern] [file]\n");
+ printf("usage: jrep [-cnov] [pattern] [file]\n");
  return 0;
 }
 
@@ -264,11 +268,17 @@ int main(int argc, char *argv[]) {
  bool inverse = false;
  bool linecount = false;
  bool only = false;
+ bool count = false;
+ int c = 0;
 
  if (argv[1][0] == '-') {
   ++pattern;
   for (int i = 1; argv[1][i] != '\0'; ++i) {
    switch (argv[1][i]) {
+    case 'c': {
+     count = true;
+     break;
+    }
     case 'v': {
      inverse = true;
      break;
@@ -330,12 +340,17 @@ int main(int argc, char *argv[]) {
   ++lc;
   if (inverse ^ does_match(line, &state, only, &buffer)) {
    matches = true;
-   if (linecount) printf("%d:", lc);
-   if (only && !inverse) printf("%s", buffer);
-   else printf("%s", line);
+   ++c;
+   if (!count) {
+    if (linecount) printf("%d:", lc);
+    if (only && !inverse) printf("%s", buffer);
+    else printf("%s", line);
+   }
   }
   bytes_read = getline(&line, &def_bytes, fp);
  }
+
+ if (count) printf("%d\n", c);
 
  /* The OS should be doing the cleanup for us, but we'll go ahead and close
     the file and free the string's memory anyway. */
