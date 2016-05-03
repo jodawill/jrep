@@ -1,5 +1,16 @@
 #include "jrep.h"
 
+int copy_state(struct s_state *state, int i) {
+ state->type[i+1] = state->type[i];
+ state->optional[i+1] = state->optional[i];
+ state->kleene[i+1] = state->kleene[i];
+ state->value[i+1] = state->value[i];
+ state->range.lub[i+1] = state->range.lub[i];
+ state->range.glb[i+1] = state->range.glb[i];
+ ++state->count;
+ return 0;
+}
+
 /* Parses the regular expression and creates a graph of states in struct */
 int parse(char *expr, struct s_state *state) {
  state->current = 0;
@@ -108,6 +119,19 @@ int parse(char *expr, struct s_state *state) {
     }
     state->optional[state->current-1] = true;
     state->kleene[state->current-1] = true;
+    continue;
+   }
+
+   case '+': {
+    if (state->current == 0) {
+     fprintf(stderr, "Error: Missing state before +\n");
+     return -1;
+    }
+    copy_state(state, state->current-1);
+    state->optional[state->current-1] = false;
+    state->kleene[state->current-1] = false;
+    state->optional[state->current] = true;
+    state->kleene[state->current++] = true;
     continue;
    }
 
