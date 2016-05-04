@@ -13,13 +13,14 @@ int copy_state(struct s_state *state, int i) {
 
 /* Parses the regular expression and creates a graph of states in struct */
 int parse(char *expr, struct s_state *state) {
- state->current = 0;
+ int current = 0;
  state->count = 0;
+ state->beg = false;
 
  /* Parse the regular expression to create a sequence of states */
  for (int i = 0; expr[i] != '\0'; i++) {
-  state->optional[state->current] = false;
-  state->kleene[state->current] = false;
+  state->optional[current] = false;
+  state->kleene[current] = false;
   switch (expr[i]) {
    /* Match the beginning of a line or complain if the pattern wants the
       beginning of the line to come after another character */
@@ -38,24 +39,24 @@ int parse(char *expr, struct s_state *state) {
      fprintf(stderr, "Error: Trailing characters after $\n");
      return -1;
     }
-    state->type[state->current] = T_EOL;
+    state->type[current] = T_EOL;
     ++state->count;
-    ++state->current;
+    ++current;
     continue;
    }
 
    /* Makes the previous state optional*/
    case '?': {
-    if (state->current == 0) {
+    if (current == 0) {
      fprintf(stderr, "Error: Missing state before ?\n");
      return -1;
     }
-    state->optional[state->current-1] = true;
+    state->optional[current-1] = true;
     continue;
    }
 
    case '[': {
-    state->type[state->current] = T_RANGE;
+    state->type[current] = T_RANGE;
 
     /* Obtain greatest lower bound of range */
     ++i;
@@ -63,7 +64,7 @@ int parse(char *expr, struct s_state *state) {
      fprintf(stderr, "Error: Malformed range\n");
      return -1;
     }
-    state->range.glb[state->current] = expr[i];
+    state->range.glb[current] = expr[i];
 
     /* Look for - separating range */
     ++i;
@@ -78,7 +79,7 @@ int parse(char *expr, struct s_state *state) {
      return -1;
     }
     if (expr[i] == '\0' || expr[i] == ']') fprintf(stderr, "Error: Malformed range\n");
-    state->range.lub[state->current] = expr[i];
+    state->range.lub[current] = expr[i];
 
     /* Brackets should always match */
     if (expr[++i] != ']') {
@@ -87,12 +88,12 @@ int parse(char *expr, struct s_state *state) {
     }
 
     /* If lub < glb, the range is invalid */
-    if (state->range.lub[state->current] < state->range.glb[state->current]) {
+    if (state->range.lub[current] < state->range.glb[current]) {
      fprintf(stderr, "Error: Least upper bound of range is less than its greatest lower bound\n");
      return -1;
     }
 
-    ++state->current;
+    ++current;
     ++state->count;
     continue;
    }
@@ -106,32 +107,32 @@ int parse(char *expr, struct s_state *state) {
 
    /* The dot is a catch all; it matches any character. */
    case '.': {
-    state->type[state->current] = T_DOT;
-    ++state->current;
+    state->type[current] = T_DOT;
+    ++current;
     ++state->count;
     continue;
    }
 
    case '*': {
-    if (state->current == 0) {
+    if (current == 0) {
      fprintf(stderr, "Error: Missing state before *\n");
      return -1;
     }
-    state->optional[state->current-1] = true;
-    state->kleene[state->current-1] = true;
+    state->optional[current-1] = true;
+    state->kleene[current-1] = true;
     continue;
    }
 
    case '+': {
-    if (state->current == 0) {
+    if (current == 0) {
      fprintf(stderr, "Error: Missing state before +\n");
      return -1;
     }
-    copy_state(state, state->current-1);
-    state->optional[state->current-1] = false;
-    state->kleene[state->current-1] = false;
-    state->optional[state->current] = true;
-    state->kleene[state->current++] = true;
+    copy_state(state, current-1);
+    state->optional[current-1] = false;
+    state->kleene[current-1] = false;
+    state->optional[current] = true;
+    state->kleene[current++] = true;
     continue;
    }
 
@@ -142,20 +143,20 @@ int parse(char *expr, struct s_state *state) {
      fprintf(stderr, "Error: Trailing \\\n");
      return -1;
     }
-    state->type[state->current] = T_CHAR;
-    state->value[state->current] = expr[i];
+    state->type[current] = T_CHAR;
+    state->value[current] = expr[i];
     ++state->count;
-    ++state->current;
+    ++current;
     continue;
    }
   }
 
   /* If the switch statement didn't find a special character, we take the
      current character literally as a T_CHAR state. */
-  state->type[state->current] = T_CHAR;
-  state->value[state->current] = expr[i];
+  state->type[current] = T_CHAR;
+  state->value[current] = expr[i];
   ++state->count;
-  ++state->current;
+  ++current;
  }
  return 0;
 }
