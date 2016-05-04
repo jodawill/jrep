@@ -95,21 +95,47 @@ int main(int argc, char *argv[]) {
  /* Whether the file matches the pattern at any point */
  bool matches = false;
 
+ /* Count the number of or statements in pattern */
+ int orcount = 0;
+ for (int j = 0; argv[pattern][j] != '\0'; ++j)
+  if (argv[pattern][j] == '|') ++orcount;
+
+ /* Allocate memory for array of expressions */
+ char *regex[orcount];
+
  /* This struct stores every state in the graph */
- int regex_count = 1;
- struct s_state *state = malloc(regex_count * sizeof *state);
+ struct s_state *state = malloc((orcount + 1) * sizeof *state);
+
+ /* Separate pattern by OR tokens */
+ int patlen = 0;
+ int patc = 0;
+ regex[0] = malloc(strlen(argv[pattern] + 1));
+ for (int j = 0; argv[pattern][j] != '\0'; ++j) {
+  if (argv[pattern][j] != '|') {
+   regex[patc][patlen] = argv[pattern][j];
+   ++patlen;
+  } else {
+   regex[patc][patlen] = '\0';
+   patlen = 0;
+   ++patc;
+   regex[patc] = malloc(strlen(argv[pattern] - j + 1));
+  }
+ }
+ regex[patc][patlen] = '\0';
 
  /* Parse the expression or throw an error */
- if (parse(argv[pattern], &state[0]) < 0) {
-  return 2;
+ for (int j = 0; j < orcount + 1; ++j) {
+  if (parse(regex[j], &state[j]) < 0) {
+   return 2;
+  }
  }
 
  /* Check for matches in each line of the file */
  while (bytes_read > 0) {
   ++lc;
   matches = false;
-  for (int j = 0; j < regex_count; ++j) {
-   matches |= inverse ^ does_match(line, &state[0], only, &buffer);
+  for (int j = 0; j < orcount+1; ++j) {
+   matches |= inverse ^ does_match(line, &state[j], only, &buffer);
   }
   if (matches) {
    ++c;
