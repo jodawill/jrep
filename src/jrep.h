@@ -18,7 +18,6 @@
 /* An s_state struct stores a graph of states */
 struct s_state {
  int type[MAX_EXPR];
- int current;
  int count;
  char value[MAX_EXPR];
  bool beg;

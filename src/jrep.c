@@ -64,6 +64,7 @@ int main(int argc, char *argv[]) {
  char *fn;
 
  if (argc > pattern + 1) {
+  fn = malloc(strlen(argv[pattern + 1]) + 1);
   fn = argv[pattern + 1];
   fp = fopen(argv[pattern + 1], "r");
   if (fp == NULL) {
@@ -72,6 +73,7 @@ int main(int argc, char *argv[]) {
   }
  } else {
   fp = stdin;
+  fn = malloc(18);
   strcpy(fn, "(standard input)");
  }
 
