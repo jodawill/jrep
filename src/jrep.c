@@ -136,6 +136,7 @@ int main(int argc, char *argv[]) {
   matches = false;
   for (int j = 0; j < orcount+1; ++j) {
    matches |= inverse ^ does_match(line, &state[j], only, &buffer);
+   if (!only && matches) break;
   }
   if (matches) {
    ++c;
