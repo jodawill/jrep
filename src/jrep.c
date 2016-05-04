@@ -96,18 +96,22 @@ int main(int argc, char *argv[]) {
  bool matches = false;
 
  /* This struct stores every state in the graph */
- struct s_state state;
+ int regex_count = 1;
+ struct s_state *state = malloc(regex_count * sizeof *state);
 
  /* Parse the expression or throw an error */
- if (parse(argv[pattern], &state) < 0) {
+ if (parse(argv[pattern], &state[0]) < 0) {
   return 2;
  }
 
  /* Check for matches in each line of the file */
  while (bytes_read > 0) {
   ++lc;
-  if (inverse ^ does_match(line, &state, only, &buffer)) {
-   matches = true;
+  matches = false;
+  for (int j = 0; j < regex_count; ++j) {
+   matches |= inverse ^ does_match(line, &state[0], only, &buffer);
+  }
+  if (matches) {
    ++c;
    if (!count) {
     if (print_names) printf("%s:", fn);
