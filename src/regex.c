@@ -15,6 +15,7 @@ int copy_state(struct s_state *state, int i) {
 int parse(char *expr, struct s_state *state) {
  int current = 0;
  state->count = 0;
+ state->beg = false;
 
  /* Parse the regular expression to create a sequence of states */
  for (int i = 0; expr[i] != '\0'; i++) {
